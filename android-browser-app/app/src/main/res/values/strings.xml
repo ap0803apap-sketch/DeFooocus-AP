@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DeFooocus Browser</string>
+    <string name="keep_alive_channel_name">Browser Runtime</string>
+    <string name="keep_alive_channel_description">Keeps DeFooocus browser session running</string>
+    <string name="keep_alive_notification">Browser session is active</string>
+</resources>
