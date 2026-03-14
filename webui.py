@@ -417,6 +417,33 @@ with shared.gradio_root:
                             ai_recommend_preset_btn = gr.Button('Recommend Generation Preset')
                             ai_preset_output = gr.Textbox(label='Recommended Preset JSON', lines=10)
 
+                        with gr.Accordion('7) AI Edit Transformers', open=False):
+                            gr.Markdown('Pose changer, cloth changer, and facial expression changer plans.')
+
+                            with gr.Tab('Pose Changer'):
+                                pose_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
+                                pose_reference_image = gr.File(label='Reference Pose Image', file_count='single', file_types=['image'], type='file')
+                                pose_optional_prompt = gr.Textbox(label='Optional Prompt', value='studio photo, high detail')
+                                pose_keep_face = gr.Checkbox(label='Preserve Face Identity', value=True)
+                                pose_change_btn = gr.Button('Change Pose Plan')
+                                pose_change_output = gr.Textbox(label='Pose Change JSON Plan', lines=10)
+
+                            with gr.Tab('Cloth Changer'):
+                                cloth_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
+                                cloth_reference_image = gr.File(label='Reference Cloth Image', file_count='single', file_types=['image'], type='file')
+                                cloth_optional_prompt = gr.Textbox(label='Optional Prompt', value='same lighting and realistic fabric folds')
+                                cloth_preserve_pose = gr.Checkbox(label='Preserve Original Pose', value=True)
+                                cloth_change_btn = gr.Button('Change Cloth Plan')
+                                cloth_change_output = gr.Textbox(label='Cloth Change JSON Plan', lines=10)
+
+                            with gr.Tab('Expression Changer'):
+                                expression_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
+                                expression_reference_image = gr.File(label='Reference Expression Image (optional)', file_count='single', file_types=['image'], type='file')
+                                expression_prompt = gr.Textbox(label='Expression Prompt (optional)', value='gentle smile')
+                                expression_preserve_identity = gr.Checkbox(label='Preserve Identity', value=True)
+                                expression_change_btn = gr.Button('Change Expression Plan')
+                                expression_change_output = gr.Textbox(label='Expression Change JSON Plan', lines=10)
+
                         generate_character_prompt_btn.click(
                             fn=creative_suite.build_character_prompt,
                             inputs=[character_base_prompt, character_pose, character_clothes, character_environment,
@@ -502,6 +529,30 @@ with shared.gradio_root:
                             fn=creative_suite.recommend_generation_preset,
                             inputs=[ai_goal, ai_platform, ai_speed_priority],
                             outputs=[ai_preset_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        pose_change_btn.click(
+                            fn=creative_suite.build_pose_change_plan,
+                            inputs=[pose_subject_image, pose_reference_image, pose_optional_prompt, pose_keep_face],
+                            outputs=[pose_change_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        cloth_change_btn.click(
+                            fn=creative_suite.build_cloth_change_plan,
+                            inputs=[cloth_subject_image, cloth_reference_image, cloth_optional_prompt, cloth_preserve_pose],
+                            outputs=[cloth_change_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        expression_change_btn.click(
+                            fn=creative_suite.build_expression_change_plan,
+                            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity],
+                            outputs=[expression_change_output],
                             queue=False,
                             show_progress=True
                         )

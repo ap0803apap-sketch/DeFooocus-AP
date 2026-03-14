@@ -420,3 +420,120 @@ def recommend_generation_preset(creative_goal: str, target_platform: str, speed_
         },
         'note': 'Apply these manually in the main generation controls for best results.',
     }, indent=2)
+
+
+def build_pose_change_plan(subject_image, pose_reference_image, optional_prompt: str = '', keep_face: bool = True):
+    subject_paths = _to_paths(subject_image)
+    pose_paths = _to_paths(pose_reference_image)
+    subject = subject_paths[0] if subject_paths else None
+    pose_ref = pose_paths[0] if pose_paths else None
+
+    if not subject or not pose_ref:
+        return json.dumps({'error': 'Please upload both subject image and pose reference image.'}, indent=2)
+
+    prompt_parts = [
+        'same person as subject image',
+        'match exact body pose and camera angle from pose reference image',
+        'preserve face identity and skin tone',
+    ]
+    if optional_prompt and optional_prompt.strip():
+        prompt_parts.append(optional_prompt.strip())
+
+    if keep_face:
+        prompt_parts.append('high face consistency, do not alter identity')
+
+    return json.dumps({
+        'task': 'ai_pose_changer',
+        'inputs': {
+            'subject_image': subject,
+            'pose_reference_image': pose_ref,
+            'optional_prompt': optional_prompt,
+            'keep_face': keep_face,
+        },
+        'recommended_prompt': ', '.join(prompt_parts),
+        'recommended_negative_prompt': 'different person, identity drift, wrong pose, distorted limbs, extra arms, bad anatomy',
+        'how_to_apply': [
+            'Go to Input Image -> Inpaint or Outpaint and upload subject image.',
+            'Mask full body area to allow pose change.',
+            'Go to Image Prompt tab and upload pose reference image in one slot.',
+            'Set Image Prompt Type to composition/pose style and medium-high weight.',
+            'Paste recommended prompt and generate multiple tries.',
+        ],
+    }, indent=2)
+
+
+def build_cloth_change_plan(subject_image, cloth_reference_image, optional_prompt: str = '', preserve_pose: bool = True):
+    subject_paths = _to_paths(subject_image)
+    cloth_paths = _to_paths(cloth_reference_image)
+    subject = subject_paths[0] if subject_paths else None
+    cloth_ref = cloth_paths[0] if cloth_paths else None
+
+    if not subject or not cloth_ref:
+        return json.dumps({'error': 'Please upload both subject image and cloth reference image.'}, indent=2)
+
+    prompt_parts = [
+        'same person and identity as subject image',
+        'replace only outfit with clothing from reference image',
+        'match texture, fabric pattern, and color exactly',
+    ]
+    if preserve_pose:
+        prompt_parts.append('preserve original pose and body proportions')
+    if optional_prompt and optional_prompt.strip():
+        prompt_parts.append(optional_prompt.strip())
+
+    return json.dumps({
+        'task': 'ai_cloth_changer',
+        'inputs': {
+            'subject_image': subject,
+            'cloth_reference_image': cloth_ref,
+            'optional_prompt': optional_prompt,
+            'preserve_pose': preserve_pose,
+        },
+        'recommended_prompt': ', '.join(prompt_parts),
+        'recommended_negative_prompt': 'change face, change hairstyle, change pose, wrong clothing colors, mismatched fabric, extra garments',
+        'how_to_apply': [
+            'Use Inpaint on subject image and mask only clothing region.',
+            'Upload cloth reference in Image Prompt tab.',
+            'Prefer lower denoise first for fabric transfer, then increase if needed.',
+            'Keep face unmasked to preserve identity.',
+        ],
+    }, indent=2)
+
+
+def build_expression_change_plan(subject_image, expression_prompt: str = '', expression_reference_image=None,
+                                 preserve_identity: bool = True):
+    subject_paths = _to_paths(subject_image)
+    expr_paths = _to_paths(expression_reference_image)
+    subject = subject_paths[0] if subject_paths else None
+    expr_ref = expr_paths[0] if expr_paths else None
+
+    if not subject:
+        return json.dumps({'error': 'Please upload subject image.'}, indent=2)
+    if not expression_prompt.strip() and not expr_ref:
+        return json.dumps({'error': 'Provide expression prompt and/or expression reference image.'}, indent=2)
+
+    prompt_parts = ['same person as subject image', 'change only facial expression']
+    if expression_prompt.strip():
+        prompt_parts.append(f'target expression: {expression_prompt.strip()}')
+    if expr_ref:
+        prompt_parts.append('match expression muscle pattern from reference image')
+    if preserve_identity:
+        prompt_parts.append('preserve facial identity, age, skin detail, and head pose')
+
+    return json.dumps({
+        'task': 'ai_facial_expression_changer',
+        'inputs': {
+            'subject_image': subject,
+            'expression_prompt': expression_prompt,
+            'expression_reference_image': expr_ref,
+            'preserve_identity': preserve_identity,
+        },
+        'recommended_prompt': ', '.join(prompt_parts),
+        'recommended_negative_prompt': 'face swap, different identity, asymmetrical eyes, distorted mouth, extra teeth, uncanny face',
+        'how_to_apply': [
+            'Use Inpaint and mask face region only (eyes, brows, cheeks, mouth).',
+            'If available, upload expression reference in Image Prompt tab.',
+            'Use moderate denoise to keep identity while changing expression.',
+            'Generate multiple candidates and pick best facial anatomy.',
+        ],
+    }, indent=2)
