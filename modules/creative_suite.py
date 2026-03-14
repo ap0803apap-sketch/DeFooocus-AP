@@ -47,6 +47,34 @@ def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
+def _to_paths(uploaded) -> List[str]:
+    if uploaded is None:
+        return []
+
+    candidates = uploaded if isinstance(uploaded, list) else [uploaded]
+    paths = []
+    for item in candidates:
+        if not item:
+            continue
+        if isinstance(item, str):
+            paths.append(item)
+            continue
+
+        # gr.File(type='file') usually provides a temp file object with `.name`
+        name = getattr(item, 'name', None)
+        if isinstance(name, str) and name:
+            paths.append(name)
+            continue
+
+        # fallback for dict-like structures from some gradio versions
+        if isinstance(item, dict):
+            maybe_path = item.get('name') or item.get('path')
+            if isinstance(maybe_path, str) and maybe_path:
+                paths.append(maybe_path)
+
+    return paths
+
+
 def build_character_prompt(base_prompt: str, pose: str, clothes: str, environment: str,
                            identity_strength: float, style_strength: float) -> str:
     prompt_parts = [base_prompt.strip()]
@@ -70,7 +98,7 @@ def save_character_profile(profile_name: str, base_prompt: str, negative_prompt:
     _ensure_dir(profile_root)
 
     copied_images = []
-    for src in reference_images or []:
+    for src in _to_paths(reference_images):
         if src and os.path.exists(src):
             dst = profile_root / Path(src).name
             shutil.copy2(src, dst)
@@ -137,7 +165,7 @@ def create_lora_training_job(job_name: str, trigger_word: str, learning_rate: fl
     _ensure_dir(images_dir)
 
     copied_images = []
-    for src in reference_images or []:
+    for src in _to_paths(reference_images):
         if src and os.path.exists(src):
             dst = images_dir / Path(src).name
             shutil.copy2(src, dst)
@@ -170,6 +198,9 @@ def create_lora_training_job(job_name: str, trigger_word: str, learning_rate: fl
 
 
 def import_lora_file(uploaded_file: str) -> str:
+    paths = _to_paths(uploaded_file)
+    uploaded_file = paths[0] if paths else ''
+
     if not uploaded_file or not os.path.exists(uploaded_file):
         return 'No LoRA file uploaded.'
 

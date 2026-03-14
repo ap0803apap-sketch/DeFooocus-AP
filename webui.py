@@ -348,7 +348,7 @@ with shared.gradio_root:
 
                         with gr.Accordion('1) Character Consistency', open=True):
                             character_name = gr.Textbox(label='Character Name', value='my_character')
-                            character_ref_images = gr.File(label='Upload reference images', file_count='multiple', file_types=['image'], type='filepath')
+                            character_ref_images = gr.File(label='Upload reference images', file_count='multiple', file_types=['image'], type='file')
                             character_base_prompt = gr.Textbox(label='Base Character Prompt', value='portrait of a confident sci-fi hero')
                             character_negative_prompt = gr.Textbox(label='Negative Prompt', value='deformed face, blurry eyes, bad anatomy')
                             character_pose = gr.Textbox(label='Pose change', value='running pose')
@@ -375,7 +375,7 @@ with shared.gradio_root:
                             lora_notes = gr.Textbox(label='Training Notes', lines=2)
                             with gr.Row():
                                 create_lora_job_btn = gr.Button('Create LoRA Training Package')
-                                lora_import_file = gr.File(label='Import trained LoRA (.safetensors)', file_count='single', file_types=['.safetensors'], type='filepath')
+                                lora_import_file = gr.File(label='Import trained LoRA (.safetensors)', file_count='single', file_types=['.safetensors'], type='file')
                                 lora_import_btn = gr.Button('Import LoRA into models/loras')
                             lora_job_output = gr.Textbox(label='LoRA Job JSON', lines=8)
                             lora_status = gr.Textbox(label='LoRA Status', interactive=False)
