@@ -34,6 +34,7 @@ This is just a fork (and a fork of forks), we are not the authors of this creati
 - Special theme
 - Optimize parameters and UI
 - Default model is FluentlyXL v4
+- Creative Suite (Beta): Character consistency profiles, LoRA training package export/import, Story/Comic generator plans, Movie storyboard planning, AI prompt assistant tools, and an AI preset recommender
 
 
 ---
