@@ -196,6 +196,7 @@ with shared.gradio_root:
                 advanced_checkbox = gr.Checkbox(label='Advanced', value=modules.config.default_advanced_checkbox, container=False, elem_classes='min_check')
                
             with gr.Row(visible=False) as image_input_panel:
+                current_tab = gr.Textbox(value='uov', visible=False)
                 with gr.Tabs():
                     with gr.TabItem(label='Upscale or Variation') as uov_tab:
                         with gr.Row():
@@ -675,7 +676,6 @@ with shared.gradio_root:
                                         outputs=image_input_panel, queue=False, show_progress=False, _js=switch_js)
             ip_advanced.change(lambda: None, queue=False, show_progress=False, _js=down_js)
 
-            current_tab = gr.Textbox(value='uov', visible=False)
             uov_tab.select(lambda: 'uov', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             inpaint_tab.select(lambda: 'inpaint', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             ip_tab.select(lambda: 'ip', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
