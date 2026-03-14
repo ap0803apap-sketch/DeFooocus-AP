@@ -357,3 +357,66 @@ def storyboard_from_single_prompt(master_prompt: str, shot_count: int):
         })
 
     return json.dumps({'master_prompt': prompt, 'shots': shots}, indent=2)
+
+
+def recommend_generation_preset(creative_goal: str, target_platform: str, speed_priority: str):
+    goal = (creative_goal or '').strip().lower()
+    platform = (target_platform or 'instagram').strip().lower()
+    speed = (speed_priority or 'balanced').strip().lower()
+
+    if not goal:
+        return json.dumps({'error': 'Creative goal is empty.'}, indent=2)
+
+    styles = ['Fooocus V2']
+    guidance = 5.0
+    sharpness = 2.0
+    performance = 'Quality'
+    negative = suggest_negative_prompt(goal)
+
+    if 'portrait' in goal or 'fashion' in goal or 'face' in goal:
+        styles += ['Fooocus Enhance']
+        guidance = 5.5
+        sharpness = 2.5
+    if 'cinematic' in goal or 'movie' in goal:
+        styles += ['Fooocus Sharp']
+        guidance = 6.0
+        sharpness = 3.0
+    if 'anime' in goal or 'manga' in goal:
+        styles = ['Fooocus V2', 'Fooocus Masterpiece']
+        guidance = 4.8
+        sharpness = 1.8
+
+    aspect_ratio_map = {
+        'instagram': '1024×1024',
+        'youtube': '1344×768',
+        'tiktok': '768×1344',
+        'print': '1152×896',
+        'wallpaper': '1536×640',
+    }
+    aspect_ratio = aspect_ratio_map.get(platform, '1024×1024')
+
+    if speed == 'fast':
+        performance = 'Speed'
+    elif speed == 'max quality':
+        performance = 'Quality'
+        guidance += 0.5
+        sharpness += 0.3
+    else:
+        performance = 'Balanced'
+
+    return json.dumps({
+        'input': {
+            'creative_goal': creative_goal,
+            'target_platform': target_platform,
+            'speed_priority': speed_priority,
+        },
+        'recommended': {
+            'performance': performance,
+            'aspect_ratio': aspect_ratio,
+            'styles': styles,
+            'guidance_scale': round(guidance, 2),
+            'sharpness': round(sharpness, 2),
+            'negative_prompt': negative,
+        },
+        'note': 'Apply these manually in the main generation controls for best results.',
+    }, indent=2)

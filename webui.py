@@ -410,6 +410,13 @@ with shared.gradio_root:
                             ai_negative_output = gr.Textbox(label='Suggested Negative Prompt', lines=2)
                             ai_storyboard_output = gr.Textbox(label='Storyboard JSON', lines=10)
 
+                        with gr.Accordion('6) AI Preset Recommender', open=False):
+                            ai_goal = gr.Textbox(label='Creative Goal', value='cinematic portrait for instagram')
+                            ai_platform = gr.Dropdown(label='Target Platform', choices=['instagram', 'youtube', 'tiktok', 'print', 'wallpaper'], value='instagram')
+                            ai_speed_priority = gr.Dropdown(label='Speed Priority', choices=['fast', 'balanced', 'max quality'], value='balanced')
+                            ai_recommend_preset_btn = gr.Button('Recommend Generation Preset')
+                            ai_preset_output = gr.Textbox(label='Recommended Preset JSON', lines=10)
+
                         generate_character_prompt_btn.click(
                             fn=creative_suite.build_character_prompt,
                             inputs=[character_base_prompt, character_pose, character_clothes, character_environment,
@@ -487,6 +494,14 @@ with shared.gradio_root:
                             fn=creative_suite.storyboard_from_single_prompt,
                             inputs=[ai_subject_prompt, ai_storyboard_shots],
                             outputs=[ai_storyboard_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        ai_recommend_preset_btn.click(
+                            fn=creative_suite.recommend_generation_preset,
+                            inputs=[ai_goal, ai_platform, ai_speed_priority],
+                            outputs=[ai_preset_output],
                             queue=False,
                             show_progress=True
                         )
