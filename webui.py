@@ -3,6 +3,7 @@ import random
 import os
 import json
 import time
+import numpy as np
 import shared
 import modules.config
 import fooocus_version
@@ -426,6 +427,7 @@ with shared.gradio_root:
                                 pose_optional_prompt = gr.Textbox(label='Optional Prompt', value='studio photo, high detail')
                                 pose_keep_face = gr.Checkbox(label='Preserve Face Identity', value=True)
                                 pose_change_btn = gr.Button('Change Pose Plan')
+                                pose_change_generate_btn = gr.Button('Run Pose Changer (Generate)')
                                 pose_change_output = gr.Textbox(label='Pose Change JSON Plan', lines=10)
 
                             with gr.Tab('Cloth Changer'):
@@ -434,6 +436,7 @@ with shared.gradio_root:
                                 cloth_optional_prompt = gr.Textbox(label='Optional Prompt', value='same lighting and realistic fabric folds')
                                 cloth_preserve_pose = gr.Checkbox(label='Preserve Original Pose', value=True)
                                 cloth_change_btn = gr.Button('Change Cloth Plan')
+                                cloth_change_generate_btn = gr.Button('Run Cloth Changer (Generate)')
                                 cloth_change_output = gr.Textbox(label='Cloth Change JSON Plan', lines=10)
 
                             with gr.Tab('Expression Changer'):
@@ -442,6 +445,7 @@ with shared.gradio_root:
                                 expression_prompt = gr.Textbox(label='Expression Prompt (optional)', value='gentle smile')
                                 expression_preserve_identity = gr.Checkbox(label='Preserve Identity', value=True)
                                 expression_change_btn = gr.Button('Change Expression Plan')
+                                expression_change_generate_btn = gr.Button('Run Expression Changer (Generate)')
                                 expression_change_output = gr.Textbox(label='Expression Change JSON Plan', lines=10)
 
                         generate_character_prompt_btn.click(
@@ -556,6 +560,113 @@ with shared.gradio_root:
                             queue=False,
                             show_progress=True
                         )
+
+                        def _file_to_numpy(file_obj):
+                            if file_obj is None:
+                                return None
+                            path = file_obj if isinstance(file_obj, str) else getattr(file_obj, 'name', None)
+                            if not path or not os.path.exists(path):
+                                return None
+                            from PIL import Image
+                            return np.array(Image.open(path).convert('RGB'))
+
+                        def prepare_pose_change(subject_file, pose_file, optional_prompt, keep_face):
+                            subject_np = _file_to_numpy(subject_file)
+                            pose_np = _file_to_numpy(pose_file)
+                            if subject_np is None or pose_np is None:
+                                return [
+                                    gr.update(), gr.update(), gr.update(), gr.update(), gr.update(),
+                                    gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update()
+                                ]
+
+                            p = 'same person as subject image, match exact body pose and camera angle from reference image, preserve identity'
+                            if optional_prompt and optional_prompt.strip():
+                                p += f', {optional_prompt.strip()}'
+                            if keep_face:
+                                p += ', keep face identity very high'
+
+                            return [
+                                gr.update(value=True),
+                                gr.update(value='inpaint'),
+                                gr.update(value=modules.flags.inpaint_option_modify),
+                                gr.update(value=subject_np),
+                                gr.update(value=p),
+                                gr.update(value=pose_np),
+                                gr.update(value=flags.cn_ip),
+                                gr.update(value=0.9),
+                                gr.update(value=1.2),
+                                gr.update(value=True),
+                                gr.update(value=False),
+                                gr.update(value=False),
+                            ]
+
+                        def prepare_cloth_change(subject_file, cloth_file, optional_prompt, preserve_pose):
+                            subject_np = _file_to_numpy(subject_file)
+                            cloth_np = _file_to_numpy(cloth_file)
+                            if subject_np is None or cloth_np is None:
+                                return [
+                                    gr.update(), gr.update(), gr.update(), gr.update(), gr.update(),
+                                    gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update()
+                                ]
+
+                            p = 'same person as subject image, replace outfit with clothes from reference image, keep face and body identity'
+                            if preserve_pose:
+                                p += ', preserve original pose'
+                            if optional_prompt and optional_prompt.strip():
+                                p += f', {optional_prompt.strip()}'
+
+                            return [
+                                gr.update(value=True),
+                                gr.update(value='inpaint'),
+                                gr.update(value=modules.flags.inpaint_option_modify),
+                                gr.update(value=subject_np),
+                                gr.update(value=p),
+                                gr.update(value=cloth_np),
+                                gr.update(value=flags.cn_ip),
+                                gr.update(value=0.85),
+                                gr.update(value=1.05),
+                                gr.update(value=True),
+                                gr.update(value=False),
+                                gr.update(value=False),
+                            ]
+
+                        def prepare_expression_change(subject_file, expression_text, expr_ref_file, preserve_identity):
+                            subject_np = _file_to_numpy(subject_file)
+                            expr_np = _file_to_numpy(expr_ref_file)
+                            if subject_np is None:
+                                return [
+                                    gr.update(), gr.update(), gr.update(), gr.update(), gr.update(),
+                                    gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update()
+                                ]
+
+                            p = 'same person as subject image, change only facial expression'
+                            if expression_text and expression_text.strip():
+                                p += f', expression: {expression_text.strip()}'
+                            if expr_np is not None:
+                                p += ', match expression from reference image'
+                            if preserve_identity:
+                                p += ', keep identity, age, and skin details unchanged'
+
+                            return [
+                                gr.update(value=True),
+                                gr.update(value='inpaint'),
+                                gr.update(value=modules.flags.inpaint_option_modify),
+                                gr.update(value=subject_np),
+                                gr.update(value=p),
+                                gr.update(value=expr_np),
+                                gr.update(value=flags.cn_ip),
+                                gr.update(value=0.75),
+                                gr.update(value=1.0),
+                                gr.update(value=True),
+                                gr.update(value=False),
+                                gr.update(value=False),
+                            ]
+
+                        edit_prepare_outputs = [
+                            input_image_checkbox, current_tab, inpaint_mode, inpaint_input_image,
+                            inpaint_additional_prompt, ip_images[0], ip_types[0], ip_stops[0], ip_weights[0],
+                            mixing_image_prompt_and_inpaint, inpaint_mask_upload_checkbox, invert_mask_checkbox
+                        ]
 
             switch_js = "(x) => {if(x){viewer_to_bottom(100);viewer_to_bottom(500);}else{viewer_to_top();} return x;}"
             down_js = "() => {viewer_to_bottom();}"
@@ -1052,6 +1163,54 @@ with shared.gradio_root:
                   outputs=[generate_button, stop_button, skip_button, state_is_generating]) \
             .then(fn=update_history_link, outputs=history_link) \
             .then(fn=lambda: None, _js='playNotification').then(fn=lambda: None, _js='refresh_grid_delayed')
+
+        def run_edit_pipeline():
+            return gr.update(visible=True, interactive=True), gr.update(visible=True, interactive=True), gr.update(visible=False, interactive=False), [], True
+
+        def finish_edit_pipeline():
+            return gr.update(visible=True, interactive=True), gr.update(visible=False, interactive=False), gr.update(visible=False, interactive=False), False
+
+        pose_change_generate_btn.click(
+            fn=prepare_pose_change,
+            inputs=[pose_subject_image, pose_reference_image, pose_optional_prompt, pose_keep_face],
+            outputs=edit_prepare_outputs,
+            queue=False,
+            show_progress=True
+        ).then(fn=run_edit_pipeline, outputs=[stop_button, skip_button, generate_button, gallery, state_is_generating]) \
+         .then(fn=refresh_seed, inputs=[seed_random, image_seed], outputs=image_seed) \
+         .then(fn=get_task, inputs=ctrls, outputs=currentTask) \
+         .then(fn=generate_clicked, inputs=currentTask, outputs=[progress_html, progress_window, progress_gallery, gallery]) \
+         .then(fn=finish_edit_pipeline, outputs=[generate_button, stop_button, skip_button, state_is_generating]) \
+         .then(fn=update_history_link, outputs=history_link) \
+         .then(fn=lambda: None, _js='playNotification').then(fn=lambda: None, _js='refresh_grid_delayed')
+
+        cloth_change_generate_btn.click(
+            fn=prepare_cloth_change,
+            inputs=[cloth_subject_image, cloth_reference_image, cloth_optional_prompt, cloth_preserve_pose],
+            outputs=edit_prepare_outputs,
+            queue=False,
+            show_progress=True
+        ).then(fn=run_edit_pipeline, outputs=[stop_button, skip_button, generate_button, gallery, state_is_generating]) \
+         .then(fn=refresh_seed, inputs=[seed_random, image_seed], outputs=image_seed) \
+         .then(fn=get_task, inputs=ctrls, outputs=currentTask) \
+         .then(fn=generate_clicked, inputs=currentTask, outputs=[progress_html, progress_window, progress_gallery, gallery]) \
+         .then(fn=finish_edit_pipeline, outputs=[generate_button, stop_button, skip_button, state_is_generating]) \
+         .then(fn=update_history_link, outputs=history_link) \
+         .then(fn=lambda: None, _js='playNotification').then(fn=lambda: None, _js='refresh_grid_delayed')
+
+        expression_change_generate_btn.click(
+            fn=prepare_expression_change,
+            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity],
+            outputs=edit_prepare_outputs,
+            queue=False,
+            show_progress=True
+        ).then(fn=run_edit_pipeline, outputs=[stop_button, skip_button, generate_button, gallery, state_is_generating]) \
+         .then(fn=refresh_seed, inputs=[seed_random, image_seed], outputs=image_seed) \
+         .then(fn=get_task, inputs=ctrls, outputs=currentTask) \
+         .then(fn=generate_clicked, inputs=currentTask, outputs=[progress_html, progress_window, progress_gallery, gallery]) \
+         .then(fn=finish_edit_pipeline, outputs=[generate_button, stop_button, skip_button, state_is_generating]) \
+         .then(fn=update_history_link, outputs=history_link) \
+         .then(fn=lambda: None, _js='playNotification').then(fn=lambda: None, _js='refresh_grid_delayed')
 
         def trigger_describe(mode, img):
             if mode == flags.desc_type_photo:
