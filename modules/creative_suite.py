@@ -275,3 +275,85 @@ def generate_movie_plan(sequence_notes: str, scene_description: str, fps: int, s
         'render_hint': 'Generate keyframes per shot, then interpolate with your video backend.',
     }
     return json.dumps(movie_plan, indent=2)
+
+
+def generate_prompt_variations(subject_prompt: str, style: str, count: int):
+    base = (subject_prompt or '').strip()
+    if not base:
+        return json.dumps({'error': 'Subject prompt is empty.'}, indent=2)
+
+    style = (style or 'cinematic').strip()
+    count = max(1, min(int(count), 12))
+    camera_setups = [
+        'close-up portrait, 85mm lens',
+        'medium shot, natural perspective',
+        'wide establishing shot, dramatic composition',
+        'low-angle hero framing',
+        'high-angle atmospheric framing',
+        'dynamic motion composition',
+    ]
+    lighting_setups = [
+        'soft diffused lighting',
+        'golden hour rim light',
+        'volumetric god rays',
+        'moody noir contrast',
+        'neon bounce lighting',
+        'studio key and fill setup',
+    ]
+
+    variants = []
+    for i in range(count):
+        variants.append({
+            'id': i + 1,
+            'prompt': f'{base}, {style} style, {camera_setups[i % len(camera_setups)]}, '
+                      f'{lighting_setups[i % len(lighting_setups)]}, ultra-detailed',
+        })
+
+    return json.dumps({'subject': base, 'style': style, 'variations': variants}, indent=2)
+
+
+def suggest_negative_prompt(subject_prompt: str):
+    base = (subject_prompt or '').strip()
+    quality_negatives = [
+        'lowres', 'blurry', 'out of focus', 'bad anatomy', 'deformed hands', 'extra fingers',
+        'asymmetrical eyes', 'jpeg artifacts', 'watermark', 'logo', 'text', 'oversaturated',
+    ]
+
+    photo_negatives = ['cartoon', '3d render', 'cgi']
+    anime_negatives = ['photorealistic skin pores', 'camera sensor noise']
+
+    base_lower = base.lower()
+    if 'anime' in base_lower or 'manga' in base_lower:
+        merged = quality_negatives + anime_negatives
+    else:
+        merged = quality_negatives + photo_negatives
+
+    return ', '.join(merged)
+
+
+def storyboard_from_single_prompt(master_prompt: str, shot_count: int):
+    prompt = (master_prompt or '').strip()
+    if not prompt:
+        return json.dumps({'error': 'Master prompt is empty.'}, indent=2)
+
+    shot_count = max(1, min(int(shot_count), 10))
+    progression = [
+        'opening wide shot introducing scene',
+        'character-focused medium shot',
+        'close-up emotional beat',
+        'action or transition shot',
+        'detail insert shot',
+        'climactic frame',
+        'resolution shot',
+    ]
+
+    shots = []
+    for i in range(shot_count):
+        beat = progression[i % len(progression)]
+        shots.append({
+            'shot': i + 1,
+            'beat': beat,
+            'prompt': f'{prompt}, {beat}, cinematic continuity, consistent character identity'
+        })
+
+    return json.dumps({'master_prompt': prompt, 'shots': shots}, indent=2)

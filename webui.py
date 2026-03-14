@@ -397,6 +397,19 @@ with shared.gradio_root:
                             generate_movie_plan_btn = gr.Button('Generate Movie Plan JSON')
                             movie_plan_output = gr.Textbox(label='Movie Plan JSON', lines=12)
 
+                        with gr.Accordion('5) AI Prompt Assistant', open=False):
+                            ai_subject_prompt = gr.Textbox(label='Subject Prompt', value='A futuristic female explorer in Mumbai streets at night')
+                            ai_style = gr.Textbox(label='Style', value='cinematic photorealistic')
+                            ai_variation_count = gr.Slider(label='Variation Count', minimum=1, maximum=12, value=4, step=1)
+                            ai_storyboard_shots = gr.Slider(label='Storyboard Shots', minimum=1, maximum=10, value=5, step=1)
+                            with gr.Row():
+                                ai_generate_variations_btn = gr.Button('Generate Prompt Variations')
+                                ai_suggest_negative_btn = gr.Button('Suggest Negative Prompt')
+                                ai_generate_storyboard_btn = gr.Button('Generate Storyboard Shots')
+                            ai_variations_output = gr.Textbox(label='Prompt Variations JSON', lines=10)
+                            ai_negative_output = gr.Textbox(label='Suggested Negative Prompt', lines=2)
+                            ai_storyboard_output = gr.Textbox(label='Storyboard JSON', lines=10)
+
                         generate_character_prompt_btn.click(
                             fn=creative_suite.build_character_prompt,
                             inputs=[character_base_prompt, character_pose, character_clothes, character_environment,
@@ -450,6 +463,30 @@ with shared.gradio_root:
                             fn=creative_suite.generate_movie_plan,
                             inputs=[movie_sequence_notes, movie_scene_description, movie_fps, movie_seconds],
                             outputs=[movie_plan_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        ai_generate_variations_btn.click(
+                            fn=creative_suite.generate_prompt_variations,
+                            inputs=[ai_subject_prompt, ai_style, ai_variation_count],
+                            outputs=[ai_variations_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        ai_suggest_negative_btn.click(
+                            fn=creative_suite.suggest_negative_prompt,
+                            inputs=[ai_subject_prompt],
+                            outputs=[ai_negative_output],
+                            queue=False,
+                            show_progress=False
+                        )
+
+                        ai_generate_storyboard_btn.click(
+                            fn=creative_suite.storyboard_from_single_prompt,
+                            inputs=[ai_subject_prompt, ai_storyboard_shots],
+                            outputs=[ai_storyboard_output],
                             queue=False,
                             show_progress=True
                         )
