@@ -13,6 +13,7 @@ import modules.flags as flags
 import modules.gradio_hijack as grh
 import modules.style_sorter as style_sorter
 import modules.meta_parser
+import modules.creative_suite as creative_suite
 from modules.rembg import rembg_run
 from modules.load_online import load_demos_names, load_tools_names, load_demos_url, load_tools_url
 import args_manager
@@ -341,6 +342,220 @@ with shared.gradio_root:
 
                         metadata_input_image.upload(trigger_metadata_preview, inputs=metadata_input_image,
                                                     outputs=metadata_json, queue=False, show_progress=True)
+
+                    with gr.TabItem(label='Creative Suite (Beta)'):
+                        gr.Markdown('Character consistency, LoRA package workflow, story/comic planning, and movie planning tools. This tab is additive and does not alter the default generation pipeline.')
+
+                        with gr.Accordion('1) Character Consistency', open=True):
+                            character_name = gr.Textbox(label='Character Name', value='my_character')
+                            character_ref_images = gr.File(label='Upload reference images', file_count='multiple', file_types=['image'], type='file')
+                            character_base_prompt = gr.Textbox(label='Base Character Prompt', value='portrait of a confident sci-fi hero')
+                            character_negative_prompt = gr.Textbox(label='Negative Prompt', value='deformed face, blurry eyes, bad anatomy')
+                            character_pose = gr.Textbox(label='Pose change', value='running pose')
+                            character_clothes = gr.Textbox(label='Clothes change', value='futuristic jacket')
+                            character_environment = gr.Textbox(label='Environment change', value='rainy neon city at night')
+                            character_identity_strength = gr.Slider(label='Identity strength', minimum=0.2, maximum=1.5, value=0.9, step=0.05)
+                            character_style_strength = gr.Slider(label='Reference style strength', minimum=0.0, maximum=1.5, value=0.7, step=0.05)
+                            character_notes = gr.Textbox(label='Notes', lines=2)
+                            with gr.Row():
+                                save_character_profile_btn = gr.Button('Save Character Profile')
+                                export_character_profile_btn = gr.Button('Export Character Profile (.zip)')
+                            generate_character_prompt_btn = gr.Button('Build Consistency Prompt')
+                            character_prompt_output = gr.Textbox(label='Generated Consistency Prompt', lines=4)
+                            character_profile_status = gr.Textbox(label='Status', interactive=False)
+                            character_profile_json = gr.Textbox(label='Character Profile JSON', lines=10)
+                            character_profile_zip = gr.File(label='Download Character Profile Zip')
+
+                        with gr.Accordion('2) LoRA Auto-Training Package (External Trainer)', open=False):
+                            lora_job_name = gr.Textbox(label='LoRA Job Name', value='my_character_lora')
+                            lora_trigger_word = gr.Textbox(label='Trigger Word', value='charhero')
+                            lora_lr = gr.Number(label='Learning Rate', value=0.0001)
+                            lora_steps = gr.Slider(label='Training Steps', minimum=100, maximum=5000, value=1200, step=100)
+                            lora_rank = gr.Slider(label='LoRA Rank', minimum=4, maximum=128, value=32, step=4)
+                            lora_notes = gr.Textbox(label='Training Notes', lines=2)
+                            with gr.Row():
+                                create_lora_job_btn = gr.Button('Create LoRA Training Package')
+                                lora_import_file = gr.File(label='Import trained LoRA (.safetensors)', file_count='single', file_types=['.safetensors'], type='file')
+                                lora_import_btn = gr.Button('Import LoRA into models/loras')
+                            lora_job_output = gr.Textbox(label='LoRA Job JSON', lines=8)
+                            lora_status = gr.Textbox(label='LoRA Status', interactive=False)
+
+                        with gr.Accordion('3) Story / Comic Generator', open=False):
+                            story_prompt = gr.Textbox(label='Story Prompt', value='A robot exploring Mars')
+                            story_panels = gr.Slider(label='Panel Count', minimum=1, maximum=12, value=3, step=1)
+                            story_with_captions = gr.Checkbox(label='Include Captions', value=True)
+                            story_layout = gr.Dropdown(label='Comic Layout', choices=['single column', '2x2 grid', '3x3 grid', 'cinematic widescreen strip'], value='single column')
+                            generate_story_btn = gr.Button('Generate Story Panels Plan')
+                            story_output = gr.Textbox(label='Story/Comic JSON Plan', lines=14)
+
+                        with gr.Accordion('4) Movie Generator Plan', open=False):
+                            movie_sequence_notes = gr.Textbox(label='Sequence image notes (one per line)', lines=5,
+                                                              value='shot 1: character enters frame\nshot 2: close-up emotion\nshot 3: dramatic reveal')
+                            movie_scene_description = gr.Textbox(label='Scene Description', value='A lone explorer on Mars discovering an alien artifact')
+                            movie_fps = gr.Slider(label='FPS', minimum=8, maximum=60, value=24, step=1)
+                            movie_seconds = gr.Slider(label='Total Duration (seconds)', minimum=2, maximum=120, value=12, step=1)
+                            generate_movie_plan_btn = gr.Button('Generate Movie Plan JSON')
+                            movie_plan_output = gr.Textbox(label='Movie Plan JSON', lines=12)
+
+                        with gr.Accordion('5) AI Prompt Assistant', open=False):
+                            ai_subject_prompt = gr.Textbox(label='Subject Prompt', value='A futuristic female explorer in Mumbai streets at night')
+                            ai_style = gr.Textbox(label='Style', value='cinematic photorealistic')
+                            ai_variation_count = gr.Slider(label='Variation Count', minimum=1, maximum=12, value=4, step=1)
+                            ai_storyboard_shots = gr.Slider(label='Storyboard Shots', minimum=1, maximum=10, value=5, step=1)
+                            with gr.Row():
+                                ai_generate_variations_btn = gr.Button('Generate Prompt Variations')
+                                ai_suggest_negative_btn = gr.Button('Suggest Negative Prompt')
+                                ai_generate_storyboard_btn = gr.Button('Generate Storyboard Shots')
+                            ai_variations_output = gr.Textbox(label='Prompt Variations JSON', lines=10)
+                            ai_negative_output = gr.Textbox(label='Suggested Negative Prompt', lines=2)
+                            ai_storyboard_output = gr.Textbox(label='Storyboard JSON', lines=10)
+
+                        with gr.Accordion('6) AI Preset Recommender', open=False):
+                            ai_goal = gr.Textbox(label='Creative Goal', value='cinematic portrait for instagram')
+                            ai_platform = gr.Dropdown(label='Target Platform', choices=['instagram', 'youtube', 'tiktok', 'print', 'wallpaper'], value='instagram')
+                            ai_speed_priority = gr.Dropdown(label='Speed Priority', choices=['fast', 'balanced', 'max quality'], value='balanced')
+                            ai_recommend_preset_btn = gr.Button('Recommend Generation Preset')
+                            ai_preset_output = gr.Textbox(label='Recommended Preset JSON', lines=10)
+
+                        with gr.Accordion('7) AI Edit Transformers', open=False):
+                            gr.Markdown('Pose changer, cloth changer, and facial expression changer plans.')
+
+                            with gr.Tab('Pose Changer'):
+                                pose_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
+                                pose_reference_image = gr.File(label='Reference Pose Image', file_count='single', file_types=['image'], type='file')
+                                pose_optional_prompt = gr.Textbox(label='Optional Prompt', value='studio photo, high detail')
+                                pose_keep_face = gr.Checkbox(label='Preserve Face Identity', value=True)
+                                pose_change_btn = gr.Button('Change Pose Plan')
+                                pose_change_output = gr.Textbox(label='Pose Change JSON Plan', lines=10)
+
+                            with gr.Tab('Cloth Changer'):
+                                cloth_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
+                                cloth_reference_image = gr.File(label='Reference Cloth Image', file_count='single', file_types=['image'], type='file')
+                                cloth_optional_prompt = gr.Textbox(label='Optional Prompt', value='same lighting and realistic fabric folds')
+                                cloth_preserve_pose = gr.Checkbox(label='Preserve Original Pose', value=True)
+                                cloth_change_btn = gr.Button('Change Cloth Plan')
+                                cloth_change_output = gr.Textbox(label='Cloth Change JSON Plan', lines=10)
+
+                            with gr.Tab('Expression Changer'):
+                                expression_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
+                                expression_reference_image = gr.File(label='Reference Expression Image (optional)', file_count='single', file_types=['image'], type='file')
+                                expression_prompt = gr.Textbox(label='Expression Prompt (optional)', value='gentle smile')
+                                expression_preserve_identity = gr.Checkbox(label='Preserve Identity', value=True)
+                                expression_change_btn = gr.Button('Change Expression Plan')
+                                expression_change_output = gr.Textbox(label='Expression Change JSON Plan', lines=10)
+
+                        generate_character_prompt_btn.click(
+                            fn=creative_suite.build_character_prompt,
+                            inputs=[character_base_prompt, character_pose, character_clothes, character_environment,
+                                    character_identity_strength, character_style_strength],
+                            outputs=character_prompt_output,
+                            queue=False,
+                            show_progress=False
+                        )
+
+                        save_character_profile_btn.click(
+                            fn=creative_suite.save_character_profile,
+                            inputs=[character_name, character_base_prompt, character_negative_prompt, character_ref_images, character_notes],
+                            outputs=[character_profile_status, character_profile_json],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        export_character_profile_btn.click(
+                            fn=creative_suite.export_character_profile_zip,
+                            inputs=[character_profile_json],
+                            outputs=[character_profile_zip, character_profile_status],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        create_lora_job_btn.click(
+                            fn=creative_suite.create_lora_training_job,
+                            inputs=[lora_job_name, lora_trigger_word, lora_lr, lora_steps, lora_rank, character_ref_images, lora_notes],
+                            outputs=[lora_status, lora_job_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        lora_import_btn.click(
+                            fn=creative_suite.import_lora_file,
+                            inputs=[lora_import_file],
+                            outputs=[lora_status],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        generate_story_btn.click(
+                            fn=creative_suite.generate_story_panels,
+                            inputs=[story_prompt, story_panels, story_with_captions, story_layout],
+                            outputs=[story_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        generate_movie_plan_btn.click(
+                            fn=creative_suite.generate_movie_plan,
+                            inputs=[movie_sequence_notes, movie_scene_description, movie_fps, movie_seconds],
+                            outputs=[movie_plan_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        ai_generate_variations_btn.click(
+                            fn=creative_suite.generate_prompt_variations,
+                            inputs=[ai_subject_prompt, ai_style, ai_variation_count],
+                            outputs=[ai_variations_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        ai_suggest_negative_btn.click(
+                            fn=creative_suite.suggest_negative_prompt,
+                            inputs=[ai_subject_prompt],
+                            outputs=[ai_negative_output],
+                            queue=False,
+                            show_progress=False
+                        )
+
+                        ai_generate_storyboard_btn.click(
+                            fn=creative_suite.storyboard_from_single_prompt,
+                            inputs=[ai_subject_prompt, ai_storyboard_shots],
+                            outputs=[ai_storyboard_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        ai_recommend_preset_btn.click(
+                            fn=creative_suite.recommend_generation_preset,
+                            inputs=[ai_goal, ai_platform, ai_speed_priority],
+                            outputs=[ai_preset_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        pose_change_btn.click(
+                            fn=creative_suite.build_pose_change_plan,
+                            inputs=[pose_subject_image, pose_reference_image, pose_optional_prompt, pose_keep_face],
+                            outputs=[pose_change_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        cloth_change_btn.click(
+                            fn=creative_suite.build_cloth_change_plan,
+                            inputs=[cloth_subject_image, cloth_reference_image, cloth_optional_prompt, cloth_preserve_pose],
+                            outputs=[cloth_change_output],
+                            queue=False,
+                            show_progress=True
+                        )
+
+                        expression_change_btn.click(
+                            fn=creative_suite.build_expression_change_plan,
+                            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity],
+                            outputs=[expression_change_output],
+                            queue=False,
+                            show_progress=True
+                        )
 
             switch_js = "(x) => {if(x){viewer_to_bottom(100);viewer_to_bottom(500);}else{viewer_to_top();} return x;}"
             down_js = "() => {viewer_to_bottom();}"
