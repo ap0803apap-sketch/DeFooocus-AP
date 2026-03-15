@@ -421,6 +421,15 @@ with shared.gradio_root:
                         with gr.Accordion('7) AI Edit Transformers', open=False):
                             gr.Markdown('Pose changer, cloth changer, and facial expression changer plans.')
 
+                            with gr.Accordion('External Feature Setup Recipes', open=False):
+                                external_feature_name = gr.Dropdown(
+                                    label='Feature',
+                                    choices=['ai-clothes-changer', 'outfitanyone', 'expression-editor'],
+                                    value='ai-clothes-changer'
+                                )
+                                external_feature_btn = gr.Button('Show Setup Instructions')
+                                external_feature_output = gr.Textbox(label='Setup JSON', lines=12)
+
                             with gr.Tab('Pose Changer'):
                                 pose_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
                                 pose_reference_image = gr.File(label='Reference Pose Image', file_count='single', file_types=['image'], type='file')
@@ -561,6 +570,14 @@ with shared.gradio_root:
                             show_progress=True
                         )
 
+                        external_feature_btn.click(
+                            fn=creative_suite.external_feature_setup_instructions,
+                            inputs=[external_feature_name],
+                            outputs=[external_feature_output],
+                            queue=False,
+                            show_progress=False
+                        )
+
                         def _file_to_numpy(file_obj):
                             if file_obj is None:
                                 return None
@@ -662,11 +679,7 @@ with shared.gradio_root:
                                 gr.update(value=False),
                             ]
 
-                        edit_prepare_outputs = [
-                            input_image_checkbox, current_tab, inpaint_mode, inpaint_input_image,
-                            inpaint_additional_prompt, ip_images[0], ip_types[0], ip_stops[0], ip_weights[0],
-                            mixing_image_prompt_and_inpaint, inpaint_mask_upload_checkbox, invert_mask_checkbox
-                        ]
+                        current_tab = gr.Textbox(value='uov', visible=False)
 
             switch_js = "(x) => {if(x){viewer_to_bottom(100);viewer_to_bottom(500);}else{viewer_to_top();} return x;}"
             down_js = "() => {viewer_to_bottom();}"
@@ -675,7 +688,6 @@ with shared.gradio_root:
                                         outputs=image_input_panel, queue=False, show_progress=False, _js=switch_js)
             ip_advanced.change(lambda: None, queue=False, show_progress=False, _js=down_js)
 
-            current_tab = gr.Textbox(value='uov', visible=False)
             uov_tab.select(lambda: 'uov', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             inpaint_tab.select(lambda: 'inpaint', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             ip_tab.select(lambda: 'ip', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
@@ -981,6 +993,12 @@ with shared.gradio_root:
                                                             inputs=inpaint_mask_upload_checkbox,
                                                             outputs=[inpaint_mask_image, inpaint_mask_generation_col],
                                                             queue=False, show_progress=False)
+
+                        edit_prepare_outputs = [
+                            input_image_checkbox, current_tab, inpaint_mode, inpaint_input_image,
+                            inpaint_additional_prompt, ip_images[0], ip_types[0], ip_stops[0], ip_weights[0],
+                            mixing_image_prompt_and_inpaint, inpaint_mask_upload_checkbox, invert_mask_checkbox
+                        ]
 
                     with gr.Tab(label='FreeU'):
                         freeu_enabled = gr.Checkbox(label='Enabled', value=False)
