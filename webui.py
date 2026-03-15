@@ -453,6 +453,32 @@ with shared.gradio_root:
                                 expression_reference_image = gr.File(label='Reference Expression Image (optional)', file_count='single', file_types=['image'], type='file')
                                 expression_prompt = gr.Textbox(label='Expression Prompt (optional)', value='gentle smile')
                                 expression_preserve_identity = gr.Checkbox(label='Preserve Identity', value=True)
+                                with gr.Tabs():
+                                    with gr.TabItem('HEAD'):
+                                        expression_head_pitch = gr.Slider(label='Rotate Up-Down', minimum=-20, maximum=20, value=0, step=0.1)
+                                        expression_head_yaw = gr.Slider(label='Rotate Left-Right turn', minimum=-20, maximum=20, value=0, step=0.1)
+                                        expression_head_roll = gr.Slider(label='Rotate Left-Right tilt', minimum=-20, maximum=20, value=0, step=0.1)
+                                    with gr.TabItem('EYES'):
+                                        expression_eyes_eyebrow = gr.Slider(label='Eyebrow', minimum=-20, maximum=20, value=0, step=0.1)
+                                        with gr.Row():
+                                            expression_eyes_blink = gr.Slider(label='Blink', minimum=-20, maximum=20, value=0, step=0.1)
+                                            expression_eyes_wink = gr.Slider(label='Wink', minimum=-20, maximum=20, value=0, step=0.1)
+                                        with gr.Row():
+                                            expression_eyes_pupil_x = gr.Slider(label='Pupil X', minimum=-20, maximum=20, value=0, step=0.1)
+                                            expression_eyes_pupil_y = gr.Slider(label='Pupil Y', minimum=-20, maximum=20, value=0, step=0.1)
+                                    with gr.TabItem('MOUTH'):
+                                        with gr.Row():
+                                            expression_mouth_aaa = gr.Slider(label='Aaa', minimum=-20, maximum=20, value=0, step=0.1)
+                                            expression_mouth_eee = gr.Slider(label='Eee', minimum=-20, maximum=20, value=0, step=0.1)
+                                        expression_mouth_woo = gr.Slider(label='Woo', minimum=-20, maximum=20, value=13.4, step=0.1)
+                                        expression_mouth_smile = gr.Slider(label='Smile', minimum=-20, maximum=20, value=0, step=0.1)
+                                    with gr.TabItem('More Settings'):
+                                        expression_src_ratio = gr.Number(label='Src Ratio', value=1, precision=2, info='Source ratio')
+                                        expression_sample_ratio = gr.Slider(label='Sample Ratio', minimum=0, maximum=1, value=0.36, step=0.01, info='Sample ratio')
+                                        expression_crop_factor = gr.Slider(label='Crop Factor', minimum=0.5, maximum=3.0, value=1.7, step=0.1, info='Crop factor')
+                                        expression_output_format = gr.Dropdown(label='output_format', choices=modules.flags.output_formats, value=modules.config.default_output_format)
+                                        expression_output_quality = gr.Slider(label='Output Quality', minimum=0, maximum=100, value=95, step=1, info='Quality of the output images, from 0 to 100.')
+                                expression_reset_btn = gr.Button('Reset Expression Controls')
                                 expression_change_btn = gr.Button('Change Expression Plan')
                                 expression_change_generate_btn = gr.Button('Run Expression Changer (Generate)')
                                 expression_change_output = gr.Textbox(label='Expression Change JSON Plan', lines=10)
@@ -546,6 +572,66 @@ with shared.gradio_root:
                             show_progress=True
                         )
 
+
+                        def _compose_expression_prompt(
+                            expression_text,
+                            head_pitch, head_yaw, head_roll,
+                            eyes_eyebrow, eyes_blink, eyes_wink, eyes_pupil_x, eyes_pupil_y,
+                            mouth_aaa, mouth_eee, mouth_woo, mouth_smile,
+                            src_ratio, sample_ratio, crop_factor, output_fmt, output_quality,
+                        ):
+                            prompt_parts = []
+                            if expression_text and expression_text.strip():
+                                prompt_parts.append(expression_text.strip())
+
+                            controls = [
+                                ('head rotate up-down', head_pitch),
+                                ('head rotate left-right turn', head_yaw),
+                                ('head rotate left-right tilt', head_roll),
+                                ('eyebrow expression', eyes_eyebrow),
+                                ('blink', eyes_blink),
+                                ('wink', eyes_wink),
+                                ('pupil x direction', eyes_pupil_x),
+                                ('pupil y direction', eyes_pupil_y),
+                                ('mouth aaa', mouth_aaa),
+                                ('mouth eee', mouth_eee),
+                                ('mouth woo', mouth_woo),
+                                ('smile', mouth_smile),
+                            ]
+                            for label, value in controls:
+                                if abs(float(value)) > 0.001:
+                                    prompt_parts.append(f'{label}: {float(value):+.1f}')
+
+                            prompt_parts.append(
+                                f'processing settings src_ratio={float(src_ratio):.2f}, sample_ratio={float(sample_ratio):.2f}, '
+                                f'crop_factor={float(crop_factor):.2f}, output_format={output_fmt}, output_quality={int(output_quality)}'
+                            )
+                            return ', '.join(prompt_parts)
+
+                        def build_expression_change_plan_with_controls(
+                            subject_file,
+                            expression_text,
+                            expr_ref_file,
+                            preserve_identity,
+                            head_pitch, head_yaw, head_roll,
+                            eyes_eyebrow, eyes_blink, eyes_wink, eyes_pupil_x, eyes_pupil_y,
+                            mouth_aaa, mouth_eee, mouth_woo, mouth_smile,
+                            src_ratio, sample_ratio, crop_factor, output_fmt, output_quality,
+                        ):
+                            composed_prompt = _compose_expression_prompt(
+                                expression_text,
+                                head_pitch, head_yaw, head_roll,
+                                eyes_eyebrow, eyes_blink, eyes_wink, eyes_pupil_x, eyes_pupil_y,
+                                mouth_aaa, mouth_eee, mouth_woo, mouth_smile,
+                                src_ratio, sample_ratio, crop_factor, output_fmt, output_quality,
+                            )
+                            return creative_suite.build_expression_change_plan(
+                                subject_file,
+                                composed_prompt,
+                                expr_ref_file,
+                                preserve_identity,
+                            )
+
                         pose_change_btn.click(
                             fn=creative_suite.build_pose_change_plan,
                             inputs=[pose_subject_image, pose_reference_image, pose_optional_prompt, pose_keep_face],
@@ -562,9 +648,25 @@ with shared.gradio_root:
                             show_progress=True
                         )
 
+                        expression_expression_controls = [
+                            expression_head_pitch, expression_head_yaw, expression_head_roll,
+                            expression_eyes_eyebrow, expression_eyes_blink, expression_eyes_wink,
+                            expression_eyes_pupil_x, expression_eyes_pupil_y,
+                            expression_mouth_aaa, expression_mouth_eee, expression_mouth_woo, expression_mouth_smile,
+                            expression_src_ratio, expression_sample_ratio, expression_crop_factor,
+                            expression_output_format, expression_output_quality,
+                        ]
+
+                        expression_reset_btn.click(
+                            fn=lambda: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 13.4, 0.0, 1.0, 0.36, 1.7, modules.config.default_output_format, 95],
+                            outputs=expression_expression_controls,
+                            queue=False,
+                            show_progress=False
+                        )
+
                         expression_change_btn.click(
-                            fn=creative_suite.build_expression_change_plan,
-                            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity],
+                            fn=build_expression_change_plan_with_controls,
+                            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity] + expression_expression_controls,
                             outputs=[expression_change_output],
                             queue=False,
                             show_progress=True
@@ -647,7 +749,11 @@ with shared.gradio_root:
                                 gr.update(value=False),
                             ]
 
-                        def prepare_expression_change(subject_file, expression_text, expr_ref_file, preserve_identity):
+                        def prepare_expression_change(subject_file, expression_text, expr_ref_file, preserve_identity,
+                                                      head_pitch, head_yaw, head_roll,
+                                                      eyes_eyebrow, eyes_blink, eyes_wink, eyes_pupil_x, eyes_pupil_y,
+                                                      mouth_aaa, mouth_eee, mouth_woo, mouth_smile,
+                                                      src_ratio, sample_ratio, crop_factor, output_fmt, output_quality):
                             subject_np = _file_to_numpy(subject_file)
                             expr_np = _file_to_numpy(expr_ref_file)
                             if subject_np is None:
@@ -656,9 +762,17 @@ with shared.gradio_root:
                                     gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update(), gr.update()
                                 ]
 
+                            composed_prompt = _compose_expression_prompt(
+                                expression_text,
+                                head_pitch, head_yaw, head_roll,
+                                eyes_eyebrow, eyes_blink, eyes_wink, eyes_pupil_x, eyes_pupil_y,
+                                mouth_aaa, mouth_eee, mouth_woo, mouth_smile,
+                                src_ratio, sample_ratio, crop_factor, output_fmt, output_quality,
+                            )
+
                             p = 'same person as subject image, change only facial expression'
-                            if expression_text and expression_text.strip():
-                                p += f', expression: {expression_text.strip()}'
+                            if composed_prompt:
+                                p += f', expression controls: {composed_prompt}'
                             if expr_np is not None:
                                 p += ', match expression from reference image'
                             if preserve_identity:
@@ -672,8 +786,8 @@ with shared.gradio_root:
                                 gr.update(value=p),
                                 gr.update(value=expr_np),
                                 gr.update(value=flags.cn_ip),
-                                gr.update(value=0.75),
-                                gr.update(value=1.0),
+                                gr.update(value=max(0.1, min(1.0, float(sample_ratio)))),
+                                gr.update(value=max(0.3, min(2.0, float(crop_factor) / 1.7))),
                                 gr.update(value=True),
                                 gr.update(value=False),
                                 gr.update(value=False),
@@ -1218,7 +1332,7 @@ with shared.gradio_root:
 
         expression_change_generate_btn.click(
             fn=prepare_expression_change,
-            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity],
+            inputs=[expression_subject_image, expression_prompt, expression_reference_image, expression_preserve_identity] + expression_expression_controls,
             outputs=edit_prepare_outputs,
             queue=False,
             show_progress=True
