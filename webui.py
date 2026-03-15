@@ -680,11 +680,6 @@ with shared.gradio_root:
                             ]
 
                         current_tab = gr.Textbox(value='uov', visible=False)
-                        edit_prepare_outputs = [
-                            input_image_checkbox, current_tab, inpaint_mode, inpaint_input_image,
-                            inpaint_additional_prompt, ip_images[0], ip_types[0], ip_stops[0], ip_weights[0],
-                            mixing_image_prompt_and_inpaint, inpaint_mask_upload_checkbox, invert_mask_checkbox
-                        ]
 
             switch_js = "(x) => {if(x){viewer_to_bottom(100);viewer_to_bottom(500);}else{viewer_to_top();} return x;}"
             down_js = "() => {viewer_to_bottom();}"
@@ -998,6 +993,12 @@ with shared.gradio_root:
                                                             inputs=inpaint_mask_upload_checkbox,
                                                             outputs=[inpaint_mask_image, inpaint_mask_generation_col],
                                                             queue=False, show_progress=False)
+
+                        edit_prepare_outputs = [
+                            input_image_checkbox, current_tab, inpaint_mode, inpaint_input_image,
+                            inpaint_additional_prompt, ip_images[0], ip_types[0], ip_stops[0], ip_weights[0],
+                            mixing_image_prompt_and_inpaint, inpaint_mask_upload_checkbox, invert_mask_checkbox
+                        ]
 
                     with gr.Tab(label='FreeU'):
                         freeu_enabled = gr.Checkbox(label='Enabled', value=False)
