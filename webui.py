@@ -421,6 +421,15 @@ with shared.gradio_root:
                         with gr.Accordion('7) AI Edit Transformers', open=False):
                             gr.Markdown('Pose changer, cloth changer, and facial expression changer plans.')
 
+                            with gr.Accordion('External Feature Setup Recipes', open=False):
+                                external_feature_name = gr.Dropdown(
+                                    label='Feature',
+                                    choices=['ai-clothes-changer', 'outfitanyone', 'expression-editor'],
+                                    value='ai-clothes-changer'
+                                )
+                                external_feature_btn = gr.Button('Show Setup Instructions')
+                                external_feature_output = gr.Textbox(label='Setup JSON', lines=12)
+
                             with gr.Tab('Pose Changer'):
                                 pose_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
                                 pose_reference_image = gr.File(label='Reference Pose Image', file_count='single', file_types=['image'], type='file')
@@ -559,6 +568,14 @@ with shared.gradio_root:
                             outputs=[expression_change_output],
                             queue=False,
                             show_progress=True
+                        )
+
+                        external_feature_btn.click(
+                            fn=creative_suite.external_feature_setup_instructions,
+                            inputs=[external_feature_name],
+                            outputs=[external_feature_output],
+                            queue=False,
+                            show_progress=False
                         )
 
                         def _file_to_numpy(file_obj):

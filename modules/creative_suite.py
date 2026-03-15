@@ -537,3 +537,52 @@ def build_expression_change_plan(subject_image, expression_prompt: str = '', exp
             'Generate multiple candidates and pick best facial anatomy.',
         ],
     }, indent=2)
+
+
+def external_feature_setup_instructions(feature_name: str):
+    key = (feature_name or '').strip().lower()
+
+    recipes = {
+        'ai-clothes-changer': {
+            'feature': 'AI Clothes Changer',
+            'source': 'https://huggingface.co/spaces/frogleo/AI-Clothes-Changer',
+            'commands': [
+                'git clone https://huggingface.co/spaces/frogleo/AI-Clothes-Changer',
+                'cd AI-Clothes-Changer',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
+        'outfitanyone': {
+            'feature': 'OutfitAnyone',
+            'source': 'https://huggingface.co/spaces/HumanAIGC/OutfitAnyone',
+            'commands': [
+                'git clone https://huggingface.co/spaces/HumanAIGC/OutfitAnyone',
+                'cd OutfitAnyone',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
+        'expression-editor': {
+            'feature': 'Expression Editor',
+            'source': 'https://huggingface.co/spaces/fffiloni/expression-editor',
+            'commands': [
+                "docker run -it -p 7860:7860 --platform=linux/amd64 --gpus all registry.hf.space/fffiloni-expression-editor:latest",
+            ],
+        },
+    }
+
+    if key not in recipes:
+        return json.dumps({'error': 'Unknown feature. Choose AI-Clothes-Changer, OutfitAnyone, or Expression-Editor.'}, indent=2)
+
+    recipe = recipes[key]
+    return json.dumps({
+        'feature': recipe['feature'],
+        'source': recipe['source'],
+        'commands': recipe['commands'],
+        'note': 'These run as external tools. DeFooocus native generation features remain unchanged.',
+    }, indent=2)
