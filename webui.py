@@ -679,6 +679,7 @@ with shared.gradio_root:
                                 gr.update(value=False),
                             ]
 
+                        current_tab = gr.Textbox(value='uov', visible=False)
                         edit_prepare_outputs = [
                             input_image_checkbox, current_tab, inpaint_mode, inpaint_input_image,
                             inpaint_additional_prompt, ip_images[0], ip_types[0], ip_stops[0], ip_weights[0],
@@ -692,7 +693,6 @@ with shared.gradio_root:
                                         outputs=image_input_panel, queue=False, show_progress=False, _js=switch_js)
             ip_advanced.change(lambda: None, queue=False, show_progress=False, _js=down_js)
 
-            current_tab = gr.Textbox(value='uov', visible=False)
             uov_tab.select(lambda: 'uov', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             inpaint_tab.select(lambda: 'inpaint', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
             ip_tab.select(lambda: 'ip', outputs=current_tab, queue=False, _js=down_js, show_progress=False)
