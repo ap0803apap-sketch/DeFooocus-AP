@@ -611,7 +611,28 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
     if not venv_dir.exists():
         ok, out = _run_shell(f'"{sys.executable}" -m venv env', cwd=app_dir)
         if not ok:
-            return json.dumps({'error': 'Virtual environment creation failed.', 'details': out}, indent=2)
+            # Colab images can fail on ensurepip inside `python -m venv`.
+            # Fallback to virtualenv bootstrap path.
+            _run_shell('rm -rf env', cwd=app_dir)
+            ok_virtualenv_install, out_virtualenv_install = _run_shell(
+                f'"{sys.executable}" -m pip install virtualenv', cwd=app_dir
+            )
+            if not ok_virtualenv_install:
+                return json.dumps({
+                    'error': 'Virtual environment creation failed.',
+                    'details': out,
+                    'fallback_error': out_virtualenv_install,
+                }, indent=2)
+
+            ok_virtualenv_create, out_virtualenv_create = _run_shell(
+                f'"{sys.executable}" -m virtualenv env', cwd=app_dir
+            )
+            if not ok_virtualenv_create:
+                return json.dumps({
+                    'error': 'Virtual environment creation failed.',
+                    'details': out,
+                    'fallback_error': out_virtualenv_create,
+                }, indent=2)
 
     python_bin = venv_dir / 'bin' / 'python'
     pip_bin = venv_dir / 'bin' / 'pip'
