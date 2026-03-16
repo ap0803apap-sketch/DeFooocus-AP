@@ -424,7 +424,7 @@ with shared.gradio_root:
                             with gr.Accordion('External Feature Setup Recipes', open=False):
                                 external_feature_name = gr.Dropdown(
                                     label='Feature',
-                                    choices=['ai-clothes-changer', 'outfitanyone', 'expression-editor'],
+                                    choices=['ai-clothes-changer', 'outfitanyone', 'expression-editor', 'nsfw-uncensored-video2', 'adult-image-generator', 'nsfw-face-swap'],
                                     value='ai-clothes-changer'
                                 )
                                 external_feature_btn = gr.Button('Show Setup Instructions')

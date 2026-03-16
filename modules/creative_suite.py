@@ -574,10 +574,51 @@ def external_feature_setup_instructions(feature_name: str):
                 "docker run -it -p 7860:7860 --platform=linux/amd64 --gpus all registry.hf.space/fffiloni-expression-editor:latest",
             ],
         },
+        'nsfw-uncensored-video2': {
+            'feature': 'NSFW Uncensored Video2',
+            'source': 'https://huggingface.co/spaces/Heartsync/NSFW-Uncensored-video2',
+            'commands': [
+                'git clone https://huggingface.co/spaces/Heartsync/NSFW-Uncensored-video2',
+                'cd NSFW-Uncensored-video2',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
+        'adult-image-generator': {
+            'feature': 'Adult Image Generator',
+            'source': 'https://huggingface.co/spaces/Heartsync/Adult',
+            'commands': [
+                'git clone https://huggingface.co/spaces/Heartsync/Adult',
+                'cd Adult',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
+        'nsfw-face-swap': {
+            'feature': 'NSFW Face Swap',
+            'source': 'https://huggingface.co/spaces/NRbones/nsfw-face-swap',
+            'commands': [
+                'git clone https://huggingface.co/spaces/NRbones/nsfw-face-swap',
+                'cd nsfw-face-swap',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
     }
 
     if key not in recipes:
-        return json.dumps({'error': 'Unknown feature. Choose AI-Clothes-Changer, OutfitAnyone, or Expression-Editor.'}, indent=2)
+        return json.dumps({
+            'error': (
+                'Unknown feature. Choose ai-clothes-changer, outfitanyone, expression-editor, '
+                'nsfw-uncensored-video2, adult-image-generator, or nsfw-face-swap.'
+            )
+        }, indent=2)
 
     recipe = recipes[key]
     return json.dumps({
