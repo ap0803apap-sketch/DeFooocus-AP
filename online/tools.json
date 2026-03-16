@@ -27,12 +27,12 @@
         "https://hysts-deepdanbooru.hf.space"
     ],
     "NSFW Uncensored Video2": [
-        "https://heartsync-nsfw-uncensored-video2.hf.space"
+        "http://127.0.0.1:7861"
     ],
     "Adult Image Generator": [
-        "https://heartsync-adult.hf.space"
+        "http://127.0.0.1:7862"
     ],
     "NSFW Face Swap": [
-        "https://nrbones-nsfw-face-swap.hf.space"
+        "http://127.0.0.1:7863"
     ]
 }
