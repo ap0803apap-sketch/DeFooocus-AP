@@ -25,7 +25,14 @@
     ],
     "DeepDanbooru": [
         "https://hysts-deepdanbooru.hf.space"
+    ],
+    "NSFW Uncensored Video2": [
+        "https://heartsync-nsfw-uncensored-video2.hf.space"
+    ],
+    "Adult Image Generator": [
+        "https://heartsync-adult.hf.space"
+    ],
+    "NSFW Face Swap": [
+        "https://nrbones-nsfw-face-swap.hf.space"
     ]
-
-
 }
