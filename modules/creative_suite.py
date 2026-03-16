@@ -667,6 +667,7 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
         'feature': app['feature'],
         'port': int(port),
         'url': f'http://127.0.0.1:{int(port)}',
+        'proxy_url': f'/proxy/{int(port)}/',
         'pid': proc.pid,
         'log_file': str(log_file),
         'note': 'Runs inside current runtime (Colab/local machine) and uses local GPU resources.',
@@ -691,11 +692,32 @@ def stop_local_nsfw_app(feature_name: str) -> str:
     return json.dumps({'status': 'stopped', 'feature': LOCAL_NSFW_APPS[key]['feature']}, indent=2)
 
 
-def get_local_nsfw_app_url(feature_name: str, port: int = 7861) -> str:
+def get_local_nsfw_app_url(feature_name: str, port: int = 7861, prefer_proxy: bool = True) -> str:
     key = (feature_name or '').strip().lower()
     if key not in LOCAL_NSFW_APPS:
         return ''
-    return f'http://127.0.0.1:{int(port)}'
+
+    p = int(port)
+    if prefer_proxy:
+        return f'/proxy/{p}/'
+    return f'http://127.0.0.1:{p}'
+
+
+def get_local_nsfw_iframe_html(feature_name: str, port: int = 7861) -> str:
+    key = (feature_name or '').strip().lower()
+    if key not in LOCAL_NSFW_APPS:
+        return '<div>Unknown local NSFW app key.</div>'
+
+    proxy_url = get_local_nsfw_app_url(key, port, prefer_proxy=True)
+    localhost_url = get_local_nsfw_app_url(key, port, prefer_proxy=False)
+
+    return (
+        f"<iframe src='{proxy_url}' width='100%' height='1080px' style='border-radius: 8px;'></iframe>"
+        f"<div style='margin-top: 8px; font-size: 12px;'>"
+        f"Primary URL (works with gradio.live): <code>{proxy_url}</code><br>"
+        f"Fallback local URL (local browser only): <code>{localhost_url}</code>"
+        f"</div>"
+    )
 
 def external_feature_setup_instructions(feature_name: str):
     key = (feature_name or '').strip().lower()

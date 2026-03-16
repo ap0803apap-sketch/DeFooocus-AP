@@ -712,7 +712,7 @@ with shared.gradio_root:
                         )
 
                         local_nsfw_open_btn.click(
-                            fn=lambda feature, port: f"<iframe src='{creative_suite.get_local_nsfw_app_url(feature, port)}' width='100%' height='1080px' style='border-radius: 8px;'></iframe>",
+                            fn=creative_suite.get_local_nsfw_iframe_html,
                             inputs=[local_nsfw_feature, local_nsfw_port],
                             outputs=[local_nsfw_frame],
                             queue=False,
