@@ -25,7 +25,14 @@
     ],
     "DeepDanbooru": [
         "https://hysts-deepdanbooru.hf.space"
+    ],
+    "NSFW Uncensored Video2": [
+        "/proxy/7861/"
+    ],
+    "Adult Image Generator": [
+        "/proxy/7862/"
+    ],
+    "NSFW Face Swap": [
+        "/proxy/7863/"
     ]
-
-
 }

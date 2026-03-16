@@ -2,8 +2,10 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 import time
+import sys
 import zipfile
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -539,6 +541,184 @@ def build_expression_change_plan(subject_image, expression_prompt: str = '', exp
     }, indent=2)
 
 
+
+
+LOCAL_NSFW_APPS = {
+    'nsfw-uncensored-video2': {
+        'feature': 'NSFW Uncensored Video2',
+        'repo': 'https://huggingface.co/spaces/Heartsync/NSFW-Uncensored-video2',
+        'dir': 'NSFW-Uncensored-video2',
+        'default_port': 7861,
+    },
+    'adult-image-generator': {
+        'feature': 'Adult Image Generator',
+        'repo': 'https://huggingface.co/spaces/Heartsync/Adult',
+        'dir': 'Adult',
+        'default_port': 7862,
+    },
+    'nsfw-face-swap': {
+        'feature': 'NSFW Face Swap',
+        'repo': 'https://huggingface.co/spaces/NRbones/nsfw-face-swap',
+        'dir': 'nsfw-face-swap',
+        'default_port': 7863,
+    },
+}
+
+_LOCAL_APP_PROCESSES = {}
+
+
+def _run_shell(command: str, cwd: Path = None) -> tuple[bool, str]:
+    result = subprocess.run(
+        command,
+        shell=True,
+        cwd=str(cwd) if cwd else None,
+        text=True,
+        capture_output=True,
+    )
+    output = (result.stdout or '') + (result.stderr or '')
+    return result.returncode == 0, output.strip()
+
+
+def _project_root() -> Path:
+    return Path(__file__).resolve().parent.parent
+
+
+def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
+    key = (feature_name or '').strip().lower()
+    if key not in LOCAL_NSFW_APPS:
+        return json.dumps({'error': 'Unknown app key.'}, indent=2)
+
+    app = LOCAL_NSFW_APPS[key]
+    root = _project_root()
+    app_dir = root / app['dir']
+
+    if key in _LOCAL_APP_PROCESSES:
+        proc = _LOCAL_APP_PROCESSES[key]
+        if proc.poll() is None:
+            return json.dumps({
+                'status': 'already_running',
+                'feature': app['feature'],
+                'port': port,
+                'url': f'http://127.0.0.1:{port}',
+            }, indent=2)
+
+    if not app_dir.exists():
+        ok, out = _run_shell(f"git clone {app['repo']}", cwd=root)
+        if not ok:
+            return json.dumps({'error': 'Clone failed.', 'details': out}, indent=2)
+
+    venv_dir = app_dir / 'env'
+    if not venv_dir.exists():
+        ok, out = _run_shell(f'"{sys.executable}" -m venv env', cwd=app_dir)
+        if not ok:
+            # Colab images can fail on ensurepip inside `python -m venv`.
+            # Fallback to virtualenv bootstrap path.
+            _run_shell('rm -rf env', cwd=app_dir)
+            ok_virtualenv_install, out_virtualenv_install = _run_shell(
+                f'"{sys.executable}" -m pip install virtualenv', cwd=app_dir
+            )
+            if not ok_virtualenv_install:
+                return json.dumps({
+                    'error': 'Virtual environment creation failed.',
+                    'details': out,
+                    'fallback_error': out_virtualenv_install,
+                }, indent=2)
+
+            ok_virtualenv_create, out_virtualenv_create = _run_shell(
+                f'"{sys.executable}" -m virtualenv env', cwd=app_dir
+            )
+            if not ok_virtualenv_create:
+                return json.dumps({
+                    'error': 'Virtual environment creation failed.',
+                    'details': out,
+                    'fallback_error': out_virtualenv_create,
+                }, indent=2)
+
+    python_bin = venv_dir / 'bin' / 'python'
+    pip_bin = venv_dir / 'bin' / 'pip'
+
+    req = app_dir / 'requirements.txt'
+    if req.exists():
+        ok, out = _run_shell(f'"{pip_bin}" install -r requirements.txt', cwd=app_dir)
+        if not ok:
+            return json.dumps({'error': 'Dependency installation failed.', 'details': out}, indent=2)
+
+    log_file = app_dir / f'run_{port}.log'
+    cmd = [
+        str(python_bin),
+        'app.py',
+        '--server_name', '0.0.0.0',
+        '--server_port', str(int(port)),
+    ]
+
+    with open(log_file, 'a', encoding='utf-8') as log_f:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(app_dir),
+            stdout=log_f,
+            stderr=log_f,
+            start_new_session=True,
+        )
+
+    _LOCAL_APP_PROCESSES[key] = proc
+
+    return json.dumps({
+        'status': 'started',
+        'feature': app['feature'],
+        'port': int(port),
+        'url': f'http://127.0.0.1:{int(port)}',
+        'proxy_url': f'/proxy/{int(port)}/',
+        'pid': proc.pid,
+        'log_file': str(log_file),
+        'note': 'Runs inside current runtime (Colab/local machine) and uses local GPU resources.',
+    }, indent=2)
+
+
+def stop_local_nsfw_app(feature_name: str) -> str:
+    key = (feature_name or '').strip().lower()
+    if key not in LOCAL_NSFW_APPS:
+        return json.dumps({'error': 'Unknown app key.'}, indent=2)
+
+    proc = _LOCAL_APP_PROCESSES.get(key)
+    if proc is None or proc.poll() is not None:
+        return json.dumps({'status': 'not_running', 'feature': LOCAL_NSFW_APPS[key]['feature']}, indent=2)
+
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+    return json.dumps({'status': 'stopped', 'feature': LOCAL_NSFW_APPS[key]['feature']}, indent=2)
+
+
+def get_local_nsfw_app_url(feature_name: str, port: int = 7861, prefer_proxy: bool = True) -> str:
+    key = (feature_name or '').strip().lower()
+    if key not in LOCAL_NSFW_APPS:
+        return ''
+
+    p = int(port)
+    if prefer_proxy:
+        return f'/proxy/{p}/'
+    return f'http://127.0.0.1:{p}'
+
+
+def get_local_nsfw_iframe_html(feature_name: str, port: int = 7861) -> str:
+    key = (feature_name or '').strip().lower()
+    if key not in LOCAL_NSFW_APPS:
+        return '<div>Unknown local NSFW app key.</div>'
+
+    proxy_url = get_local_nsfw_app_url(key, port, prefer_proxy=True)
+    localhost_url = get_local_nsfw_app_url(key, port, prefer_proxy=False)
+
+    return (
+        f"<iframe src='{proxy_url}' width='100%' height='1080px' style='border-radius: 8px;'></iframe>"
+        f"<div style='margin-top: 8px; font-size: 12px;'>"
+        f"Primary URL (works with gradio.live): <code>{proxy_url}</code><br>"
+        f"Fallback local URL (local browser only): <code>{localhost_url}</code>"
+        f"</div>"
+    )
+
 def external_feature_setup_instructions(feature_name: str):
     key = (feature_name or '').strip().lower()
 
@@ -574,10 +754,51 @@ def external_feature_setup_instructions(feature_name: str):
                 "docker run -it -p 7860:7860 --platform=linux/amd64 --gpus all registry.hf.space/fffiloni-expression-editor:latest",
             ],
         },
+        'nsfw-uncensored-video2': {
+            'feature': 'NSFW Uncensored Video2',
+            'source': 'https://huggingface.co/spaces/Heartsync/NSFW-Uncensored-video2',
+            'commands': [
+                'git clone https://huggingface.co/spaces/Heartsync/NSFW-Uncensored-video2',
+                'cd NSFW-Uncensored-video2',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
+        'adult-image-generator': {
+            'feature': 'Adult Image Generator',
+            'source': 'https://huggingface.co/spaces/Heartsync/Adult',
+            'commands': [
+                'git clone https://huggingface.co/spaces/Heartsync/Adult',
+                'cd Adult',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
+        'nsfw-face-swap': {
+            'feature': 'NSFW Face Swap',
+            'source': 'https://huggingface.co/spaces/NRbones/nsfw-face-swap',
+            'commands': [
+                'git clone https://huggingface.co/spaces/NRbones/nsfw-face-swap',
+                'cd nsfw-face-swap',
+                'python -m venv env',
+                'source env/bin/activate',
+                'pip install -r requirements.txt',
+                'python app.py',
+            ],
+        },
     }
 
     if key not in recipes:
-        return json.dumps({'error': 'Unknown feature. Choose AI-Clothes-Changer, OutfitAnyone, or Expression-Editor.'}, indent=2)
+        return json.dumps({
+            'error': (
+                'Unknown feature. Choose ai-clothes-changer, outfitanyone, expression-editor, '
+                'nsfw-uncensored-video2, adult-image-generator, or nsfw-face-swap.'
+            )
+        }, indent=2)
 
     recipe = recipes[key]
     return json.dumps({
