@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import socket
 import shutil
 import subprocess
 import tempfile
@@ -583,6 +584,32 @@ def _project_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+
+
+def _is_port_open(port: int, host: str = '127.0.0.1') -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(1.0)
+        return sock.connect_ex((host, int(port))) == 0
+
+
+def _wait_for_port(port: int, timeout_seconds: int = 120) -> bool:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        if _is_port_open(port):
+            return True
+        time.sleep(1.0)
+    return False
+
+
+def _tail_text_file(path: Path, max_chars: int = 4000) -> str:
+    if not path.exists():
+        return ''
+    try:
+        data = path.read_text(encoding='utf-8', errors='ignore')
+        return data[-max_chars:]
+    except Exception:
+        return ''
+
 def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
     key = (feature_name or '').strip().lower()
     if key not in LOCAL_NSFW_APPS:
@@ -643,34 +670,90 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
         if not ok:
             return json.dumps({'error': 'Dependency installation failed.', 'details': out}, indent=2)
 
+    port = int(port)
     log_file = app_dir / f'run_{port}.log'
-    cmd = [
-        str(python_bin),
-        'app.py',
-        '--server_name', '0.0.0.0',
-        '--server_port', str(int(port)),
+
+    launch_variants = [
+        {
+            'name': 'cli_args',
+            'cmd': [
+                str(python_bin),
+                'app.py',
+                '--server_name', '0.0.0.0',
+                '--server_port', str(port),
+            ],
+            'env': None,
+        },
+        {
+            'name': 'env_vars',
+            'cmd': [str(python_bin), 'app.py'],
+            'env': {
+                'GRADIO_SERVER_NAME': '0.0.0.0',
+                'GRADIO_SERVER_PORT': str(port),
+                'SERVER_NAME': '0.0.0.0',
+                'SERVER_PORT': str(port),
+            },
+        },
     ]
 
-    with open(log_file, 'a', encoding='utf-8') as log_f:
-        proc = subprocess.Popen(
-            cmd,
-            cwd=str(app_dir),
-            stdout=log_f,
-            stderr=log_f,
-            start_new_session=True,
-        )
+    proc = None
+    launch_errors = []
 
-    _LOCAL_APP_PROCESSES[key] = proc
+    for variant in launch_variants:
+        with open(log_file, 'a', encoding='utf-8') as log_f:
+            log_f.write(f"\n[local_nsfw_launcher] trying variant={variant['name']} at {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            env = os.environ.copy()
+            if variant['env']:
+                env.update(variant['env'])
+            proc = subprocess.Popen(
+                variant['cmd'],
+                cwd=str(app_dir),
+                stdout=log_f,
+                stderr=log_f,
+                env=env,
+                start_new_session=True,
+            )
+
+        # allow fast-fail detection
+        time.sleep(4)
+        if proc.poll() is not None:
+            launch_errors.append({'variant': variant['name'], 'return_code': proc.returncode})
+            continue
+
+        if _wait_for_port(port, timeout_seconds=120):
+            _LOCAL_APP_PROCESSES[key] = proc
+            return json.dumps({
+                'status': 'started',
+                'feature': app['feature'],
+                'port': port,
+                'url': f'http://127.0.0.1:{port}',
+                'proxy_url': f'/proxy/{port}/',
+                'pid': proc.pid,
+                'launch_variant': variant['name'],
+                'log_file': str(log_file),
+                'note': 'Runs inside current runtime (Colab/local machine) and uses local GPU resources.',
+            }, indent=2)
+
+        # stuck/not reachable; terminate and try next variant
+        try:
+            proc.terminate()
+            proc.wait(timeout=10)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+        launch_errors.append({'variant': variant['name'], 'error': 'port_not_reachable'})
 
     return json.dumps({
-        'status': 'started',
+        'error': 'App failed to become reachable. This often causes iframe 504.',
         'feature': app['feature'],
-        'port': int(port),
-        'url': f'http://127.0.0.1:{int(port)}',
-        'proxy_url': f'/proxy/{int(port)}/',
-        'pid': proc.pid,
+        'port': port,
+        'proxy_url': f'/proxy/{port}/',
         'log_file': str(log_file),
-        'note': 'Runs inside current runtime (Colab/local machine) and uses local GPU resources.',
+        'launch_attempts': launch_errors,
+        'log_tail': _tail_text_file(log_file),
     }, indent=2)
 
 
