@@ -610,6 +610,12 @@ def _tail_text_file(path: Path, max_chars: int = 4000) -> str:
     except Exception:
         return ''
 
+def _extract_public_share_url(log_path: Path) -> str:
+    text = _tail_text_file(log_path, max_chars=20000)
+    matches = re.findall(r"https://[a-zA-Z0-9.-]+\.gradio\.live", text)
+    return matches[-1] if matches else ''
+
+
 def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
     key = (feature_name or '').strip().lower()
     if key not in LOCAL_NSFW_APPS:
@@ -620,14 +626,19 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
     app_dir = root / app['dir']
 
     if key in _LOCAL_APP_PROCESSES:
-        proc = _LOCAL_APP_PROCESSES[key]
-        if proc.poll() is None:
-            return json.dumps({
+        running = _LOCAL_APP_PROCESSES[key]
+        proc = running.get('process')
+        if proc is not None and proc.poll() is None:
+            payload = {
                 'status': 'already_running',
                 'feature': app['feature'],
-                'port': port,
-                'url': f'http://127.0.0.1:{port}',
-            }, indent=2)
+                'port': running.get('port', int(port)),
+                'url': f"http://127.0.0.1:{running.get('port', int(port))}",
+                'proxy_url': f"/proxy/{running.get('port', int(port))}/",
+            }
+            if running.get('public_url'):
+                payload['public_url'] = running['public_url']
+            return json.dumps(payload, indent=2)
 
     if not app_dir.exists():
         ok, out = _run_shell(f"git clone {app['repo']}", cwd=root)
@@ -682,7 +693,7 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
                 '--server_name', '0.0.0.0',
                 '--server_port', str(port),
             ],
-            'env': None,
+            'env': {},
         },
         {
             'name': 'env_vars',
@@ -692,6 +703,17 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
                 'GRADIO_SERVER_PORT': str(port),
                 'SERVER_NAME': '0.0.0.0',
                 'SERVER_PORT': str(port),
+            },
+        },
+        {
+            'name': 'share_mode',
+            'cmd': [str(python_bin), 'app.py', '--share'],
+            'env': {
+                'GRADIO_SERVER_NAME': '0.0.0.0',
+                'GRADIO_SERVER_PORT': str(port),
+                'SERVER_NAME': '0.0.0.0',
+                'SERVER_PORT': str(port),
+                'GRADIO_SHARE': 'True',
             },
         },
     ]
@@ -721,8 +743,19 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
             continue
 
         if _wait_for_port(port, timeout_seconds=120):
-            _LOCAL_APP_PROCESSES[key] = proc
-            return json.dumps({
+            public_url = ''
+            if variant['name'] == 'share_mode':
+                time.sleep(2)
+                public_url = _extract_public_share_url(log_file)
+
+            _LOCAL_APP_PROCESSES[key] = {
+                'process': proc,
+                'port': port,
+                'log_file': str(log_file),
+                'launch_variant': variant['name'],
+                'public_url': public_url,
+            }
+            payload = {
                 'status': 'started',
                 'feature': app['feature'],
                 'port': port,
@@ -732,7 +765,10 @@ def start_local_nsfw_app(feature_name: str, port: int = 7861) -> str:
                 'launch_variant': variant['name'],
                 'log_file': str(log_file),
                 'note': 'Runs inside current runtime (Colab/local machine) and uses local GPU resources.',
-            }, indent=2)
+            }
+            if public_url:
+                payload['public_url'] = public_url
+            return json.dumps(payload, indent=2)
 
         # stuck/not reachable; terminate and try next variant
         try:
@@ -762,7 +798,8 @@ def stop_local_nsfw_app(feature_name: str) -> str:
     if key not in LOCAL_NSFW_APPS:
         return json.dumps({'error': 'Unknown app key.'}, indent=2)
 
-    proc = _LOCAL_APP_PROCESSES.get(key)
+    running = _LOCAL_APP_PROCESSES.get(key, {})
+    proc = running.get('process') if isinstance(running, dict) else None
     if proc is None or proc.poll() is not None:
         return json.dumps({'status': 'not_running', 'feature': LOCAL_NSFW_APPS[key]['feature']}, indent=2)
 
@@ -779,6 +816,10 @@ def get_local_nsfw_app_url(feature_name: str, port: int = 7861, prefer_proxy: bo
     key = (feature_name or '').strip().lower()
     if key not in LOCAL_NSFW_APPS:
         return ''
+
+    running = _LOCAL_APP_PROCESSES.get(key, {})
+    if isinstance(running, dict) and running.get('public_url'):
+        return running['public_url']
 
     p = int(port)
     if prefer_proxy:
@@ -797,8 +838,8 @@ def get_local_nsfw_iframe_html(feature_name: str, port: int = 7861) -> str:
     return (
         f"<iframe src='{proxy_url}' width='100%' height='1080px' style='border-radius: 8px;'></iframe>"
         f"<div style='margin-top: 8px; font-size: 12px;'>"
-        f"Primary URL (works with gradio.live): <code>{proxy_url}</code><br>"
-        f"Fallback local URL (local browser only): <code>{localhost_url}</code>"
+        f"Primary URL: <code>{proxy_url}</code><br>"
+        f"Fallback local URL (local browser only): <code>{localhost_url}</code><br>Tip: if proxy 504 persists, restart app and launcher may use share_mode."
         f"</div>"
     )
 
