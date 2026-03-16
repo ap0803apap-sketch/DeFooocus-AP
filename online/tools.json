@@ -25,7 +25,14 @@
     ],
     "DeepDanbooru": [
         "https://hysts-deepdanbooru.hf.space"
+    ],
+    "NSFW Uncensored Video2": [
+        "http://127.0.0.1:7861"
+    ],
+    "Adult Image Generator": [
+        "http://127.0.0.1:7862"
+    ],
+    "NSFW Face Swap": [
+        "http://127.0.0.1:7863"
     ]
-
-
 }

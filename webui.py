@@ -424,11 +424,26 @@ with shared.gradio_root:
                             with gr.Accordion('External Feature Setup Recipes', open=False):
                                 external_feature_name = gr.Dropdown(
                                     label='Feature',
-                                    choices=['ai-clothes-changer', 'outfitanyone', 'expression-editor'],
+                                    choices=['ai-clothes-changer', 'outfitanyone', 'expression-editor', 'nsfw-uncensored-video2', 'adult-image-generator', 'nsfw-face-swap'],
                                     value='ai-clothes-changer'
                                 )
                                 external_feature_btn = gr.Button('Show Setup Instructions')
                                 external_feature_output = gr.Textbox(label='Setup JSON', lines=12)
+
+                            with gr.Accordion('NSFW Local Runtime (Colab GPU)', open=False):
+                                gr.Markdown('Start these apps inside your current runtime to use local/Colab GPU instead of external hosted spaces.')
+                                local_nsfw_feature = gr.Dropdown(
+                                    label='Local NSFW App',
+                                    choices=['nsfw-uncensored-video2', 'adult-image-generator', 'nsfw-face-swap'],
+                                    value='nsfw-uncensored-video2'
+                                )
+                                local_nsfw_port = gr.Slider(label='Local Port', minimum=7861, maximum=7899, value=7861, step=1)
+                                with gr.Row():
+                                    local_nsfw_start_btn = gr.Button('Start in Local Runtime')
+                                    local_nsfw_stop_btn = gr.Button('Stop Local Runtime App')
+                                    local_nsfw_open_btn = gr.Button('Open Local App in Frame')
+                                local_nsfw_status = gr.Textbox(label='Local Runtime Status', lines=8)
+                                local_nsfw_frame = gr.HTML(label='Local App Frame', value='<div>Select app and click "Open Local App in Frame".</div>')
 
                             with gr.Tab('Pose Changer'):
                                 pose_subject_image = gr.File(label='Subject Image', file_count='single', file_types=['image'], type='file')
@@ -676,6 +691,30 @@ with shared.gradio_root:
                             fn=creative_suite.external_feature_setup_instructions,
                             inputs=[external_feature_name],
                             outputs=[external_feature_output],
+                            queue=False,
+                            show_progress=False
+                        )
+
+                        local_nsfw_start_btn.click(
+                            fn=creative_suite.start_local_nsfw_app,
+                            inputs=[local_nsfw_feature, local_nsfw_port],
+                            outputs=[local_nsfw_status],
+                            queue=True,
+                            show_progress=True
+                        )
+
+                        local_nsfw_stop_btn.click(
+                            fn=creative_suite.stop_local_nsfw_app,
+                            inputs=[local_nsfw_feature],
+                            outputs=[local_nsfw_status],
+                            queue=False,
+                            show_progress=False
+                        )
+
+                        local_nsfw_open_btn.click(
+                            fn=lambda feature, port: f"<iframe src='{creative_suite.get_local_nsfw_app_url(feature, port)}' width='100%' height='1080px' style='border-radius: 8px;'></iframe>",
+                            inputs=[local_nsfw_feature, local_nsfw_port],
+                            outputs=[local_nsfw_frame],
                             queue=False,
                             show_progress=False
                         )
